@@ -1,34 +1,43 @@
-# Python и байт-код
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
-.Python
+*.egg-info/
+dist/
+build/
+*.egg
 
-# Виртуальные окружения
+# Virtual environment
 venv/
-ENV/
 env/
 .env/
 .venv/
 
-# Настройки среды и секреты
-.env
-.env.local
-*.sqlite3
-*.sqlite3-journal
-
-# Логи и кэш
+# Django
 *.log
 local_settings.py
+db.sqlite3
 media/
 staticfiles/
-.pytest_cache/
-.mypy_cache/
 
-# Системные файлы
-.DS_Store
-Thumbs.db
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
 .idea/
 .vscode/
-```
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Celery
+celerybeat-schedule
+
+# Node (если используется)
+node_modules/
