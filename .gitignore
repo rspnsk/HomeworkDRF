@@ -7,16 +7,6 @@ dist/
 build/
 *.egg
 
-**/__pycache__
-*.pyc
-*.pyo
-*.pyd
-
-**/migrations/
-!**/migrations/__init__.py
-
-
-
 # Virtual environment
 venv/
 env/
