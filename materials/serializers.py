@@ -6,7 +6,7 @@ class CourseSerializer(serializers.ModelSerializer):
     """Сериализатор для курса."""
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'preview_image']
+        fields = '__all__'
 
 
 class LessonSerializer(serializers.ModelSerializer):

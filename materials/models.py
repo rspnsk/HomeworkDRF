@@ -9,7 +9,7 @@ class Course(models.Model):
     preview_image = models.ImageField(upload_to='course_previews/', blank=True, null=True, verbose_name='Превью изображения')
     description = models.TextField(verbose_name='Описание')
 
-    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='courses', verbose_name='Владелец')
+    # owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='courses', verbose_name='Владелец')
     # Связываем курс с пользователем. Один пользователь может владеть многими курсами.
 
     class Meta:
