@@ -1,0 +1,10 @@
+[
+  {
+    "payment_amount": 15000.00,
+    "payment_method": "transfer"
+  },
+  {
+    "payment_amount": 1500.00,
+    "payment_method": "cash"
+  }
+]
