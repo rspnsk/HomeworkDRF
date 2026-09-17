@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import CustomUser
+from config import settings
 
 
 class Course(models.Model):
@@ -8,9 +8,14 @@ class Course(models.Model):
     title = models.CharField(max_length=255, verbose_name='Название курса')
     preview_image = models.ImageField(upload_to='course_previews/', blank=True, null=True, verbose_name='Превью изображения')
     description = models.TextField(verbose_name='Описание')
-
-    # owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='courses', verbose_name='Владелец')
-    # Связываем курс с пользователем. Один пользователь может владеть многими курсами.
+    # owner = models.ForeignKey(
+    #     settings.AUTH_USER_MODEL,
+    #     on_delete=models.CASCADE,
+    #     related_name='courses',
+    #     verbose_name='Владелец',
+    #     blank=True,
+    #     null=True
+    # )
 
     class Meta:
         verbose_name = 'Курс'
