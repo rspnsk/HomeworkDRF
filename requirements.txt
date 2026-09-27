@@ -16,6 +16,7 @@ Django==6.0.7
 django-countries==9.0.0
 django-filter==26.1
 djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
 dulwich==0.22.8
 et_xmlfile==2.0.0
 fastjsonschema==2.21.2
