@@ -1,0 +1,28 @@
+[run]
+# Указываем папки приложений, которые нужно анализировать
+source =
+    materials
+    users
+
+# Список папок и файлов, которые нужно исключить из анализа
+omit =
+    *.venv/*
+    *env/*
+    manage.py
+    */migrations/*
+    */commands/*
+    */apps.py
+    */asgi.py
+    */wsgi.py
+    config/*
+    */settings.py
+    */*__init__.py
+    */tests.py
+    */tests/*
+
+[report]
+# Пропускать файлы, в которых нет исполняемого кода
+skip_empty = True
+
+# Показывать колонку со списком номеров строк, которые не покрыты тестами
+show_missing = True

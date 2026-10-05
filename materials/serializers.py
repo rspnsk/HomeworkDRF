@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from materials.models import Course, Lesson
+from materials.models import Course, Lesson, Subscription
+from materials.validators import YoutubeUrlValidator
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели подписки."""
+
+    class Meta:
+        model = Subscription
+        fields = "__all__"
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -10,10 +19,12 @@ class CourseSerializer(serializers.ModelSerializer):
 
 
 class LessonSerializer(serializers.ModelSerializer):
-    """Сериализатор для урока."""
+    """Сериализатор для урока с валидацией ссылки на видео."""
+
     class Meta:
         model = Lesson
         fields = '__all__'
+        validators = [YoutubeUrlValidator(field='video_link')]
 
 
 class CourseDetailSerializer(serializers.ModelSerializer):
@@ -22,7 +33,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     # Вкладываем сериализатор уроков как список.
     # Имя переменной 'lessons' совпадает с related_name='lessons' в модели Lesson
     lessons = LessonSerializer(many=True, read_only=True)
-
     # Объявляем вычисляемое поле для общего количества уроков
     lessons_count = serializers.SerializerMethodField()
 
@@ -33,23 +43,4 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
     def get_lessons_count(self, obj):
         # Считаем количество связанных уроков через backreference
-        return obj.lessons.count()
-
-
-class CourseDetailSerializer(serializers.ModelSerializer):
-    """Сериализатор для детального отображения курса со списком уроков и их количеством."""
-
-    # 1. Вкладываем сериализатор уроков как список (многие к одному)
-    # Имя переменной 'lessons' совпадает с related_name в модели Lesson
-    lessons = LessonSerializer(many=True, read_only=True)
-
-    # 2.  Добавляем кастомное поле для количества уроков
-    lessons_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Course
-        fields = ('id', 'title', 'description', 'lessons_count', 'lessons')
-
-    def get_lessons_count(self, obj):
-        # Считаем количество связанных уроков
         return obj.lessons.count()
