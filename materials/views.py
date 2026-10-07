@@ -1,6 +1,6 @@
 from .models import Course, Lesson, Subscription
 from .serializers import CourseSerializer, LessonSerializer, CourseDetailSerializer
-from rest_framework import viewsets, generics
+from rest_framework import viewsets, generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied  # Импортируем ошибку 403
 from users.permissions import IsModerator, IsOwner
@@ -108,9 +108,10 @@ class LessonRetrieveUpdateDeleteAPI(generics.RetrieveUpdateDestroyAPIView):
 
 
 class SubscriptionAPIView(APIView):
-    """Эндпоинт для управления подпиской (создание/удаление по принципу переключателя)."""
+    """    Эндпоинт для управления подпиской пользователя на курс.
+    Если подписка есть — удаляем, если нет — создаем."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]   # Пользователь должен быть авторизован
 
     def post(self, request, *args, **kwargs):
         user = request.user
@@ -126,9 +127,12 @@ class SubscriptionAPIView(APIView):
         if subs_item.exists():
             subs_item.delete()
             message = "Подписка успешно удалена."
+            status_code = status.HTTP_200_OK
         # Если подписки нет — создаем её
         else:
             Subscription.objects.create(user=user, course=course_item)
             message = "Подписка успешно установлена."
+            status_code = status.HTTP_201_CREATED
 
-        return Response({"message": message})
+        # Возвращаем ответ в API
+        return Response({"message": message}, status=status_code)

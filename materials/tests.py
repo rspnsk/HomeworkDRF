@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from rest_framework import status
@@ -159,3 +161,58 @@ class MaterialsTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Lesson.objects.count(), 0)
+
+    # ==================== ТЕСТЫ ПОДПИСКИ НА ОБНОВЛЕНИЯ ====================
+
+    def test_subscribe_to_course(self):
+        """Тест: успешное создание подписки на курс (если её не было)."""
+        self.client.force_authenticate(user=self.user_owner)
+
+        # Полный путь соберется как /api/materials/courses/subscribe/
+        url = reverse("materials:course-subscribe")
+        data = {"course": self.course.id}
+
+        # Изначально подписок в базе данных нет
+        self.assertEqual(Subscription.objects.count(), 0)
+
+        response = self.client.post(url, data=data, format='json')
+
+        # Проверяем статус 201 CREATED и точный текст сообщения из контроллера
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json()["message"], "Подписка успешно установлена.")
+        self.assertEqual(Subscription.objects.count(), 1)
+
+        # Проверяем корректность связей в созданной подписке
+        subscription = Subscription.objects.first()
+        self.assertEqual(subscription.user, self.user_owner)
+        self.assertEqual(subscription.course, self.course)
+
+    def test_unsubscribe_from_course(self):
+        """Тест: успешное удаление подписки при повторном запросе (отписка)."""
+        self.client.force_authenticate(user=self.user_owner)
+
+        # Предварительно создаем подписку в базе данных напрямую
+        Subscription.objects.create(user=self.user_owner, course=self.course)
+        self.assertEqual(Subscription.objects.count(), 1)
+
+        url = reverse("materials:course-subscribe")
+        data = {"course": self.course.id}
+
+        response = self.client.post(url, data=data, format='json')
+
+        # Проверяем статус 200 OK и точный текст удаления из контроллера
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["message"], "Подписка успешно удалена.")
+        self.assertEqual(Subscription.objects.count(), 0)
+
+    def test_subscribe_to_non_existent_course(self):
+        """Тест: попытка подписаться на несуществующий курс должна вернуть 404."""
+        self.client.force_authenticate(user=self.user_owner)
+
+        url = reverse("materials:course-subscribe")
+        data = {"course": 99999}  # Несуществующий ID
+
+        response = self.client.post(url, data=data, format='json')
+
+        # Проверяем корректность работы get_object_or_404
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

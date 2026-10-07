@@ -13,9 +13,22 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
 class CourseSerializer(serializers.ModelSerializer):
     """Сериализатор для курса."""
+    # Объявляем кастомное поле, логика которого описывается в методе get_is_subscribed
+    is_subscribed = serializers.SerializerMethodField()
+
     class Meta:
         model = Course
         fields = '__all__'
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get('request')
+
+        # Если запроса нет или пользователь анонимный — подписки точно нет
+        if not request or not request.user or request.user.is_anonymous:
+            return False
+
+        # Проверяем существование подписки текущего пользователя (request.user) на текущий курс (obj)
+        return Subscription.objects.filter(user=request.user, course=obj).exists()
 
 
 class LessonSerializer(serializers.ModelSerializer):
