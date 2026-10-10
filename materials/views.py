@@ -1,14 +1,18 @@
-from .models import Course, Lesson
+from .models import Course, Lesson, Subscription
 from .serializers import CourseSerializer, LessonSerializer, CourseDetailSerializer
-from rest_framework import viewsets, generics
+from rest_framework import viewsets, generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied  # Импортируем ошибку 403
 from users.permissions import IsModerator, IsOwner
+from .paginators import CustomPageNumberPagination
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.generics import get_object_or_404
 
 
 class CourseViewSet(viewsets.ModelViewSet):
     """ Контроллер для Курсов """
-
+    pagination_class = CustomPageNumberPagination
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return CourseDetailSerializer
@@ -60,6 +64,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 class LessonListCreateAPI(generics.ListCreateAPIView):
     """ Список уроков и Создание урока """
     serializer_class = LessonSerializer
+    pagination_class = CustomPageNumberPagination
 
     def get_queryset(self):
         """Модераторы видят все уроки, обычные пользователи — только свои."""
@@ -100,3 +105,34 @@ class LessonRetrieveUpdateDeleteAPI(generics.RetrieveUpdateDestroyAPIView):
                 return [IsAuthenticated(), IsOwner()]
 
         return [IsAuthenticated()]
+
+
+class SubscriptionAPIView(APIView):
+    """    Эндпоинт для управления подпиской пользователя на курс.
+    Если подписка есть — удаляем, если нет — создаем."""
+
+    permission_classes = [IsAuthenticated]   # Пользователь должен быть авторизован
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        # Получаем ID курса из POST-запроса
+        course_id = request.data.get("course")
+        # Проверяем, что такой курс действительно существует в базе данных
+        course_item = get_object_or_404(Course, id=course_id)
+
+        # Ищем подписку в базе для этого пользователя и курса
+        subs_item = Subscription.objects.filter(user=user, course=course_item)
+
+        # Если подписка уже существует — удаляем её
+        if subs_item.exists():
+            subs_item.delete()
+            message = "Подписка успешно удалена."
+            status_code = status.HTTP_200_OK
+        # Если подписки нет — создаем её
+        else:
+            Subscription.objects.create(user=user, course=course_item)
+            message = "Подписка успешно установлена."
+            status_code = status.HTTP_201_CREATED
+
+        # Возвращаем ответ в API
+        return Response({"message": message}, status=status_code)

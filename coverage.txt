@@ -1,0 +1,17 @@
+Name                       Stmts   Miss  Cover   Missing
+--------------------------------------------------------
+materials\admin.py             4      0   100%
+materials\models.py           34      3    91%   24, 51, 77
+materials\paginators.py        5      0   100%
+materials\serializers.py      24      1    96%   46
+materials\urls.py              7      0   100%
+materials\validators.py        9      0   100%
+materials\views.py            81     35    57%   17-19, 23-30, 34, 38-61, 73, 107, 116-134
+users\admin.py                15      0   100%
+users\models.py               51     11    78%   11, 19-27, 50, 114-115
+users\permissions.py          11      4    64%   9-13, 22
+users\serializers.py          15      2    87%   26-27
+users\urls.py                  9      0   100%
+users\views.py                19      3    84%   32-35
+--------------------------------------------------------
+TOTAL                        284     59    79%

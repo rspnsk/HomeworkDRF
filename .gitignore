@@ -41,3 +41,6 @@ celerybeat-schedule
 
 # Node (если используется)
 node_modules/
+
+htmlcov/
+.coverage
