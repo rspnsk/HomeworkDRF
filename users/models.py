@@ -56,11 +56,24 @@ class Payment(models.Model):
     # Варианты способов оплаты
     CASH = 'cash'
     TRANSFER = 'transfer'
+    STRIPE = 'stripe'
 
     # для выпадающего списка в админке
     PAYMENT_METHOD_CHOICES = [
         (CASH, 'Наличные'),
         (TRANSFER, 'Перевод на счет'),
+        (STRIPE, 'Эквайринг Stripe'),
+    ]
+
+    # Статусы платежа для отслеживания жизненного цикла транзакции в Stripe
+    STATUS_CREATED = 'created'
+    STATUS_PAID = 'paid'
+    STATUS_CANCELED = 'canceled'
+
+    STATUS_CHOICES = [
+        (STATUS_CREATED, 'Создан / Ожидает оплаты'),
+        (STATUS_PAID, 'Оплачен'),
+        (STATUS_CANCELED, 'Отменен / Просрочен'),
     ]
 
     user = models.ForeignKey(
@@ -74,7 +87,6 @@ class Payment(models.Model):
         verbose_name='Дата оплаты'
     )
 
-    # Поля курса и урока делаем blank=True, null=True, так как оплачивается либо то, либо другое
     paid_course = models.ForeignKey(
         'materials.Course',
         on_delete=models.SET_NULL,
@@ -104,12 +116,43 @@ class Payment(models.Model):
         verbose_name='Способ оплаты'
     )
 
+    # === Новые проектируемые поля для работы со Stripe ===
+
+    session_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='ID сессии Stripe',
+        help_text='Уникальный ID платежной сессии, возвращенный сервисом Stripe'
+    )
+
+    payment_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='Ссылка на оплату',
+        help_text='Прямая ссылка на платежную страницу Stripe Checkout'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_CREATED,
+        verbose_name='Статус платежа'
+    )
+
     class Meta:
         verbose_name = 'Платеж'
         verbose_name_plural = 'Платежи'
-        ordering = ['-payment_date']  # Свежие платежи будут сверху
+        ordering = ['-payment_date']
 
     def __str__(self):
-        # Отображаем, за что именно прошел платеж
-        item = self.paid_course.title if self.paid_course else self.paid_lesson.title
-        return f'Платеж от {self.user.email} за {item} на сумму {self.payment_amount}'
+        # Предотвращаем падение метода, если курс или урок были удалены из БД
+        item = "Неизвестный продукт"
+        if self.paid_course:
+            item = self.paid_course.title
+        elif self.paid_lesson:
+            item = self.paid_lesson.title
+
+        return f'Платеж от {self.user.email} за {item} на сумму {self.payment_amount} ({self.get_status_display()})'
+

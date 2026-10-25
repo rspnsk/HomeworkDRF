@@ -7,7 +7,13 @@ class PaymentSerializer(serializers.ModelSerializer):
     """ Сериализатор для перевода платежей в JSON """
     class Meta:
         model = Payment
-        fields = '__all__'
+        fields = [
+            'id', 'user', 'payment_date', 'paid_course',
+            'paid_lesson', 'payment_amount', 'payment_method',
+            'session_id', 'payment_url', 'status'
+        ]
+        # Эти поля клиент не должен передавать вручную, их заполнит сервер
+        read_only_fields = ['user', 'payment_amount', 'session_id', 'payment_url', 'status']
 
 
 class UserSerializer(CountryFieldMixin, serializers.ModelSerializer):

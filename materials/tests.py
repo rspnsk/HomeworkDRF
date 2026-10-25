@@ -1,12 +1,13 @@
-from unittest.mock import patch
-
-from django.contrib.auth.models import Group
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APITestCase
-
 from users.models import CustomUser
 from .models import Course, Lesson, Subscription
+
+from unittest.mock import patch
+from django.urls import reverse
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from rest_framework import status
+from rest_framework.test import APITestCase
+from users.models import  Payment
 
 
 class MaterialsTestCase(APITestCase):
@@ -14,7 +15,7 @@ class MaterialsTestCase(APITestCase):
     def setUp(self):
         """Заполнение базы данных тестовыми данными перед каждым тестом."""
         # 1. Создаем группу модераторов
-        self.moderators_group = Group.objects.create(name="moderators")
+        self.moderators_group, _ = Group.objects.get_or_create(name="moderators")
 
         # 2. Создаем пользователей
         self.user_owner = CustomUser.objects.create_user(
@@ -216,3 +217,86 @@ class MaterialsTestCase(APITestCase):
 
         # Проверяем корректность работы get_object_or_404
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+User = get_user_model()
+
+
+class PaymentStripeTestCase(APITestCase):
+
+    def setUp(self):
+        """Заполнение базы данных тестовыми данными перед каждым тестом."""
+        self.user = User.objects.create_user(
+            email="student@mail.ru",
+            password="password123"
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.course = Course.objects.create(
+            title="Курс по Django и Stripe",
+            description="Изучаем платежи",
+            price=2500.00,
+            owner=self.user
+        )
+
+        self.lesson = Lesson.objects.create(
+            course=self.course,
+            title="Урок 1. Интеграция Stripe",
+            description="Практика",
+            video_link="https://youtube.com",
+            price=700.00,
+            owner=self.user
+        )
+
+    @patch('users.views.create_stripe_session')
+    @patch('users.views.create_stripe_price')
+    @patch('users.views.create_stripe_product')
+    def test_create_stripe_payment_for_course(self, mock_create_product, mock_create_price, mock_create_session):
+        """Тест: успешное создание платежа за КУРС с генерацией ссылки Stripe."""
+
+        # Настраиваем фейковые ответы от сервисных функций
+        mock_create_product.return_value = "prod_fake123"
+        mock_create_price.return_value = "price_fake123"
+        mock_create_session.return_value = ("cs_test_fake123", "https://stripe.com")
+
+        url = reverse("users:payment-create")
+        data = {
+            "paid_course": self.course.id,
+            "payment_method": "stripe"
+        }
+
+        response = self.client.post(url, data=data, format='json')
+
+        # Проверяем успешность ответа API
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["session_id"], "cs_test_fake123")
+        self.assertEqual(response.data["payment_url"], "https://stripe.com")
+        self.assertEqual(float(response.data["payment_amount"]), 2500.00)
+        self.assertEqual(response.data["status"], "created")
+
+    @patch('users.views.retrieve_stripe_session_status')
+    def test_retrieve_payment_status_updated_to_paid(self, mock_retrieve_status):
+        """Тест: ручной эндпоинт проверки меняет статус на Оплачено, если Stripe подтвердил платеж."""
+
+        payment = Payment.objects.create(
+            user=self.user,
+            paid_course=self.course,
+            payment_amount=2500.00,
+            payment_method="stripe",
+            session_id="cs_test_fake123",
+            payment_url="https://stripe.com",
+            status="created"
+        )
+
+        # Симулируем ответ от нашего сервиса проверки статуса
+        mock_retrieve_status.return_value = "paid"
+
+        url = reverse("users:payment-status", kwargs={"pk": payment.pk})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "paid")
+
+        # Проверяем обновление статуса в базе данных
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, "paid")

@@ -12,11 +12,16 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True if os.getenv("DEBUG") == 'True' else False
 
+
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+# Проверка на наличие ключа (чтобы сервер упал при запуске, если ключ не задан, а не выдавал ошибку 500 в процессе)
+if not STRIPE_SECRET_KEY:
+    raise ValueError("STRIPE_SECRET_KEY не найден в переменных окружения. Проверьте файл .env")
+
 ALLOWED_HOSTS = []
 
 
 AUTH_USER_MODEL = 'users.CustomUser'
-
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -29,12 +34,21 @@ INSTALLED_APPS = [
     'django_filters',
     'rest_framework',
     'rest_framework_simplejwt',
+    'corsheaders',
+    'drf_spectacular',
+    'drf_yasg',
     'users',
     'materials',
 ]
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'API Documentation', # Заголовок для документации
+    'DESCRIPTION': 'Описание вашего API', # Описание (опционально)
+    'VERSION': '1.0.0', # Версия вашего API
+    'SERVE_INCLUDE_SCHEMA': False, # Не показывать сырую схему OpenAPI на главной странице (опционально)
+}
 
-# Настройки JWT-токенов
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -42,6 +56,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',  # ← вот это "закрывает" всё
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 
@@ -59,6 +74,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -92,6 +108,9 @@ DATABASES = {
         'PASSWORD': os.getenv('PASSWORD'),
         'HOST': os.getenv('HOST'),
         'PORT': os.getenv('PORT'),
+        'TEST': {
+            'NAME': 'drfhw',
+        },
     }
 }
 
@@ -139,3 +158,14 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8000',  # адрес фронтенд-сервера
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+]
+
+CORS_ALLOW_ALL_ORIGINS = False

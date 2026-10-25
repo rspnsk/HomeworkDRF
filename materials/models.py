@@ -8,6 +8,12 @@ class Course(models.Model):
     title = models.CharField(max_length=255, verbose_name='Название курса')
     preview_image = models.ImageField(upload_to='course_previews/', blank=True, null=True, verbose_name='Превью изображения')
     description = models.TextField(verbose_name='Описание')
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=1000.00,
+        verbose_name='Стоимость'
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -34,6 +40,12 @@ class Lesson(models.Model):
     description = models.TextField(verbose_name='Описание')
     preview_image = models.ImageField(upload_to='lesson_previews/', blank=True, null=True, verbose_name='Превью изображения')
     video_link = models.URLField(verbose_name='Ссылка на видео')
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=500.00,
+        verbose_name='Стоимость'
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
