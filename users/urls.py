@@ -1,6 +1,6 @@
 from django.urls import path, include
 from users.apps import UsersConfig
-from users.views import PaymentListAPIView, UserViewSet
+from users.views import PaymentListAPIView, UserViewSet, PaymentCreateAPIView, PaymentStatusRetrieveAPIView
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -16,4 +16,10 @@ urlpatterns = [
     path('login/', TokenObtainPairView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('', include(router.urls)),
+
+    # Эндпоинты для интеграции со Stripe (теперь внутри приложения users)
+    path("payment/create/", PaymentCreateAPIView.as_view(), name="payment-create"),
+    path("payment/status/<int:pk>/", PaymentStatusRetrieveAPIView.as_view(), name="payment-status"),
+
+    path("", include(router.urls)),
 ]
