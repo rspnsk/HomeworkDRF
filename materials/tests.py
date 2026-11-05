@@ -218,6 +218,61 @@ class MaterialsTestCase(APITestCase):
         # Проверяем корректность работы get_object_or_404
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    @patch('materials.tasks.send_course_update_email.delay')
+    def test_notification_triggered_on_lesson_creation(self, mock_send_email):
+        """Тест: при добавлении нового урока подписчики курса получают уведомление."""
+        # 1. Оформляем подписку для другого пользователя (user_other) на наш курс
+        Subscription.objects.create(user=self.user_other, course=self.course)
+
+        # 2. Авторизуем владельца курса для добавления нового урока
+        self.client.force_authenticate(user=self.user_owner)
+
+        data = {
+            "course": self.course.id,
+            "title": "Урок 3. Тестирование",
+            "description": "Проверяем триггер отправки email",
+            "video_link": "https://youtube.com",
+        }
+
+        # 3. Отправляем POST-запрос на создание урока
+        url = reverse("materials:lesson-list-create")
+        response = self.client.post(url, data=data, format='json')
+
+        # 4. Проверяем, что урок успешно создался
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # 5. Проверяем, что фоновая задача Celery была вызвана ровно 1 раз с ID нашего курса
+        mock_send_email.assert_called_once_with(self.course.id)
+
+    @patch('materials.tasks.send_course_update_email.delay')
+    def test_notification_triggered_on_course_update(self, mock_send_email):
+        """Тест: при обновлении курса через API подписчики получают уведомление."""
+        # 1. Оформляем подписку для другого пользователя (user_other) на наш курс
+        Subscription.objects.create(user=self.user_other, course=self.course)
+
+        # 2. Авторизуем владельца курса для редактирования
+        self.client.force_authenticate(user=self.user_owner)
+
+        # Данные для частичного обновления курса (PATCH)
+        data = {
+            "description": "Новое обновленное описание курса с актуальной информацией."
+        }
+
+        # 3. Отправляем PATCH-запрос на эндпоинт деталей курса (CourseViewSet - action: partial_update)
+        # Имя роута для ViewSet по умолчанию формируется как 'basename-detail'
+        url = reverse("materials:course-detail", kwargs={"pk": self.course.pk})
+        response = self.client.patch(url, data=data, format='json')
+
+        # 4. Проверяем, что запрос прошел успешно (200 OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что описание действительно обновилось в базе данных
+        self.course.refresh_from_db()
+        self.assertEqual(self.course.description, "Новое обновленное описание курса с актуальной информацией.")
+
+        # 5. Проверяем, что фоновая задача Celery была вызвана ровно 1 раз с ID нашего курса
+        mock_send_email.assert_called_once_with(self.course.id)
+
 
 User = get_user_model()
 
