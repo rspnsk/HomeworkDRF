@@ -44,3 +44,8 @@ node_modules/
 
 htmlcov/
 .coverage
+
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
+*.pid
