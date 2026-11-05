@@ -8,6 +8,7 @@ from .paginators import CustomPageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import get_object_or_404
+from .tasks import send_course_update_email
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -17,6 +18,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return CourseDetailSerializer
         return CourseSerializer
+
 
     def get_queryset(self):
         """Модераторы видят все курсы, обычные пользователи — только свои."""
@@ -29,9 +31,11 @@ class CourseViewSet(viewsets.ModelViewSet):
         # 2. Если зашел обычный юзер, фильтруем по владельцу (тоже с prefetch_related)
         return Course.objects.filter(owner=user).prefetch_related('lessons')
 
+
     def perform_create(self, serializer):
         """Автоматически привязывает текущего пользователя как владельца курса."""
         serializer.save(owner=self.request.user)
+
 
     def get_permissions(self):
         """Разграничение прав для модераторов и владельцев."""
@@ -61,6 +65,16 @@ class CourseViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
 
+    def perform_update(self, serializer):
+        """Сохраняет изменения курса и запускает фоновую задачу рассылки подписчикам."""
+        # Сохраняем обновленные данные курса
+        course = serializer.save()
+
+        # Вызываем фоновую задачу Celery, передавая ID обновленного курса.
+        # Метод .delay() отправляет задачу в очередь брокера Redis.
+        send_course_update_email.delay(course.id)
+
+
 class LessonListCreateAPI(generics.ListCreateAPIView):
     """ Список уроков и Создание урока """
     serializer_class = LessonSerializer
@@ -74,8 +88,15 @@ class LessonListCreateAPI(generics.ListCreateAPIView):
         return Lesson.objects.filter(owner=user)
 
     def perform_create(self, serializer):
-        """Автоматическая привязка владельца при создании урока."""
-        serializer.save(owner=self.request.user)
+        """Автоматическая привязка владельца при создании урока и запуск рассылки."""
+        # 1. Сохраняем создаваемый урок
+        lesson = serializer.save(owner=self.request.user)
+
+        # 2. Получаем курс, к которому принадлежит этот урок
+        course = lesson.course
+
+        # 3. Запускаем фоновую задачу Celery для уведомления подписчиков курса
+        send_course_update_email.delay(course.id)
 
     def get_permissions(self):
         if self.request.method == 'POST':

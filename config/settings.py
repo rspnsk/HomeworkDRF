@@ -1,7 +1,9 @@
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
+from celery.schedules import crontab
 
 load_dotenv(override=True)
 
@@ -39,6 +41,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'users',
     'materials',
+    'django_celery_beat',
 ]
 
 SPECTACULAR_SETTINGS = {
@@ -114,7 +117,7 @@ DATABASES = {
     }
 }
 
-
+# Для тестов.
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
@@ -144,7 +147,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
@@ -169,3 +172,67 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False
+
+# Настройки для Celery
+CELERY_BEAT_SCHEDULE = {
+    'task-name': {
+        'task': 'myapp.tasks.my_task',  # Путь к задаче
+        'schedule': timedelta(minutes=10),  # Расписание выполнения задачи (например, каждые 10 минут)
+    },
+}
+
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+
+
+# Запрещаем выполнение произвольного кода через задачи. Только JSON.
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+
+# Воркер подтвердит получение задачи только после ее успешного выполнения.
+# Если воркер упадет во время работы, задача вернется в очередь.
+CELERY_ACKS_LATE = True
+
+# Если соединение с брокером оборвется, воркер будет пытаться переподключиться
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_MAX_RETRIES = None # Бесконечное количество попыток
+
+# Результаты задач будут храниться в Redis 1 час (3600 секунд), затем удалятся для экономии места
+CELERY_RESULT_EXPIRES = 3600
+
+CELERY_TIMEZONE = 'Europe/Moscow'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+
+# Настройка для вывода писем в консоль
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+
+# Настройки для тестов
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
+    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+
+    # Заставляет Celery выполнять задачи синхронно (в том же потоке) без Redis
+    CELERY_TASK_ALWAYS_EAGER = True
+    # Игнорирует подключение к брокеру во время тестов
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+
+
+CELERY_BEAT_SCHEDULE = {
+    'block_inactive_users_every_day': {
+        'task': 'users.tasks.block_inactive_users',
+        # Вариант 1. Запуск раз в сутки в полночь
+        'schedule': crontab(hour=0, minute=0),
+
+        # Вариант 2. Для локального тестирования (запуск каждые 30 секунд)
+        # 'schedule': 30.0,
+    },
+}
+
